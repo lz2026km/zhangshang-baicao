@@ -257,6 +257,7 @@
 </head>
 <body>
 
+
 <!-- Header -->
 <header class="hdr">
   <div class="hdr-tl">🌿 掌上百草 <span>v2.0</span></div>
@@ -386,6 +387,7 @@
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
+
 
 <script>
 const DATA = [
@@ -3391,6 +3393,583 @@ const DATA = [
   {"id": 3000, "name": "九味羌活汤", "category": "解表剂", "desc": "外感表证", "cure": "汗出恶风", "herbs": ["甘草", "山楂", "牡蛎", "香附", "秦艽", "玉竹"], "herb_doses": {"甘草": 2.1, "山楂": 6.5, "牡蛎": 23.8, "香附": 11.0, "秦艽": 9.0, "玉竹": 14.8}, "herbs_str": "甘草2.1克、山楂6.5克、牡蛎23.8克、香附11.0克、秦艽9.0克等6味", "dose": "15克（总剂量）", "usage": "入散剂，每次6克", "classical": "《景岳全书》", "classical_dynasty": "明代", "classical_author": "张景岳", "classical_year": "1624年", "classical_desc": "明代临床医学巨著，阴阳互补理论集大成。", "effect": "具有风寒表证之功效，主治头痛身痛", "period": "明代", "taboo": "阴虚火旺忌用", "suitable": ["湿热体质"], "herb_pairs": ["甘草配山楂：配伍协同", "甘草配牡蛎：配伍协同", "甘草配香附：配伍协同"]},
 ];
 </script>
+<script>
+const LS_FAV = 'zbb_favs';
+const LS_HIST = 'zbb_hist';
+const LS_THEME = 'zbb_theme';
+const LS_DARK = 'zbb_dark';
+const LS_CMP = 'zbb_cmp';
+const LS_MED = 'zbb_med';
+const LS_STUDY = 'zbb_study';
+const LS_DAILY = 'zbb_daily';
 
+let FAVS = JSON.parse(localStorage.getItem(LS_FAV) || '[]');
+let HIST = JSON.parse(localStorage.getItem(LS_HIST) || '[]');
+let CMPS = JSON.parse(localStorage.getItem(LS_CMP) || '[]');
+let MEDS = JSON.parse(localStorage.getItem(LS_MED) || '{}');
+let filtered = [...DATA];
+let curCat = '全部';
+let curQ = '';
+let curSort = 'def';
+let mIdx = 0;
+let favPanelOn = false;
+let cmpPanelOn = false;
+let studyMode = localStorage.getItem(LS_STUDY) === '1';
+let dailyIdx = parseInt(localStorage.getItem(LS_DAILY) || '0');
+let curFavTab = 'list';
+
+// Suitables filter
+let curSuit = '';
+let onlyTaboo = false;
+
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function load(k,def){ try { return JSON.parse(localStorage.getItem(k)) || def; } catch { return def; } }
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),2000);
+}
+
+// ── Daily Recommendation ──
+function pickDaily(){
+  const cats = [...new Set(DATA.map(d=>d.category))];
+  // 按分类轮转
+  const cat = cats[dailyIdx % cats.length];
+  const items = DATA.filter(d=>d.category===cat);
+  const item = items[Math.floor(dailyIdx / cats.length) % items.length];
+  dailyIdx++;
+  localStorage.setItem(LS_DAILY, dailyIdx);
+  return item;
+}
+function renderDaily(item){
+  const banner = document.getElementById('dailyBanner');
+  document.getElementById('dailyName').textContent = item.name;
+  document.getElementById('dailyMeta').textContent = `${item.category} · ${item.classical} · ${item.herbs.length}味药`;
+  document.getElementById('dailyIco').textContent = ['🌿','🍃','🌱','💊','📜'][Math.floor(dailyIdx/2) % 5];
+  banner.classList.add('on');
+  document.getElementById('dailyRefresh').onclick = () => {
+    const d = pickDaily();
+    renderDaily(d);
+  };
+  document.getElementById('dailyBanner').onclick = () => openMd(d => {
+    renderDaily(d);
+  });
+}
+function initDaily(){
+  const item = pickDaily();
+  renderDaily(item);
+}
+
+// ── Theme ──
+function applyTheme(dark){
+  document.documentElement.dataset.theme = dark ? 'dark' : '';
+  const btn = document.getElementById('themeBtn');
+  btn.textContent = dark ? '☀️' : '🌙';
+}
+(function(){
+  const dark = localStorage.getItem(LS_DARK) === '1';
+  applyTheme(dark);
+  document.getElementById('themeBtn').onclick = ()=>{
+    const now = document.documentElement.dataset.theme !== 'dark';
+    applyTheme(now);
+    localStorage.setItem(LS_DARK, now ? '1' : '0');
+  };
+})();
+
+// ── Study Mode ──
+function toggleStudy(){
+  studyMode = !studyMode;
+  localStorage.setItem(LS_STUDY, studyMode ? '1' : '0');
+  document.getElementById('studyBar').classList.toggle('on', studyMode);
+  document.getElementById('studyModeBtn').textContent = studyMode ? '关闭' : '开启';
+  renderGrid();
+}
+(function(){
+  if(studyMode){
+    document.getElementById('studyBar').classList.add('on');
+    document.getElementById('studyModeBtn').textContent = '关闭';
+  }
+  document.getElementById('studyModeBtn').onclick = toggleStudy;
+})();
+
+// ── Filter bar ──
+const ALL_SUIT = ['成人','老人','儿童','体质虚寒','体质燥热','气血两虚','痰湿体质','湿热体质','久病体弱','亚健康'];
+function initFilterBar(){
+  const fltSuit = document.getElementById('fltSuit');
+  fltSuit.innerHTML = ALL_SUIT.map(s=>`<button class="flt-chip" data-suit="${s}">${s}</button>`).join('');
+  fltSuit.querySelectorAll('.flt-chip').forEach(b=>{
+    b.onclick = ()=>{
+      if(curSuit === b.dataset.suit){ curSuit = ''; b.classList.remove('on'); }
+      else { curSuit = b.dataset.suit; fltSuit.querySelectorAll('.flt-chip').forEach(x=>x.classList.remove('on')); b.classList.add('on'); }
+      apply();
+    };
+  });
+  document.getElementById('fltTaboo').onclick = ()=>{
+    onlyTaboo = !onlyTaboo;
+    document.getElementById('fltTaboo').classList.toggle('on', onlyTaboo);
+    apply();
+  };
+  document.getElementById('clearFlt').onclick = ()=>{
+    curSuit = ''; onlyTaboo = false;
+    document.querySelectorAll('#fltSuit .flt-chip').forEach(x=>x.classList.remove('on'));
+    document.getElementById('fltTaboo').classList.remove('on');
+    apply();
+  };
+}
+
+// ── Category chips ──
+function buildCatChips(){
+  const cats = ['全部', ...new Set(DATA.map(d=>d.category))];
+  const sc = document.getElementById('catScroll');
+  sc.innerHTML = cats.map(c => {
+    const cnt = c === '全部' ? DATA.length : DATA.filter(d=>d.category===c).length;
+    return `<button class="cat-chip${c===curCat?' on':''}" data-cat="${c}">${c}<span class="cnt">${cnt}</span></button>`;
+  }).join('');
+  sc.querySelectorAll('.cat-chip').forEach(b => {
+    b.onclick = () => {
+      curCat = b.dataset.cat;
+      buildCatChips();
+      apply();
+      closeMobFilter();
+    };
+  });
+}
+
+// ── Mobile filter ──
+function openMobFilter(){
+  document.getElementById('mobOverlay').classList.add('on');
+  document.getElementById('mobFilterPanel').classList.add('on');
+  const cats = ['全部', ...new Set(DATA.map(d=>d.category))];
+  document.getElementById('mfpCat').innerHTML = cats.map(c => {
+    const cnt = c === '全部' ? DATA.length : DATA.filter(d=>d.category===c).length;
+    return `<button class="mfp-chip${c===curCat?' on':''}" data-cat="${c}">${c} (${cnt})</button>`;
+  }).join('');
+  document.querySelectorAll('#mfpCat .mfp-chip').forEach(b => {
+    b.onclick = () => {
+      curCat = b.dataset.cat;
+      document.querySelectorAll('#mfpCat .mfp-chip').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+    };
+  });
+}
+function closeMobFilter(){
+  document.getElementById('mobOverlay').classList.remove('on');
+  document.getElementById('mobFilterPanel').classList.remove('on');
+}
+document.getElementById('mobFilterBtn').onclick = openMobFilter;
+document.getElementById('mobOverlay').onclick = closeMobFilter;
+document.getElementById('mfpClose').onclick = closeMobFilter;
+document.getElementById('mfpReset').onclick = () => {
+  curCat = '全部';
+  closeMobFilter();
+  buildCatChips();
+  apply();
+};
+document.getElementById('mfpApply').onclick = () => {
+  buildCatChips();
+  apply();
+  closeMobFilter();
+};
+
+// ── Search ──
+const srchEl = document.getElementById('srch');
+const srchHistEl = document.getElementById('srchHist');
+srchEl.addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    const q = srchEl.value.trim();
+    if(!q) return;
+    curQ = q;
+    addHist(q);
+    apply();
+    srchHistEl.classList.remove('on');
+  }
+});
+srchEl.addEventListener('input', () => {
+  document.getElementById('clearSrch').classList.toggle('on', !!srchEl.value.length);
+  const q = srchEl.value.trim().toLowerCase();
+  curQ = q;
+  apply();
+  if(q.length > 0){
+    showHist(q);
+  } else {
+    srchHistEl.classList.remove('on');
+  }
+});
+document.getElementById('clearSrch').onclick = () => {
+  srchEl.value = '';
+  curQ = '';
+  document.getElementById('clearSrch').classList.remove('on');
+  srchHistEl.classList.remove('on');
+  apply();
+};
+
+function showHist(q){
+  const h = HIST.filter(x=>x.toLowerCase().includes(q)).slice(0,8);
+  if(!h.length){ srchHistEl.classList.remove('on'); return; }
+  srchHistEl.innerHTML = h.map((t,i)=>`<div class="srch-hi" data-i="${i}">🔍 ${t}<span class="del" data-del="${i}">✕</span></div>`).join('');
+  srchHistEl.classList.add('on');
+  srchHistEl.querySelectorAll('.srch-hi').forEach(el=>{
+    el.onclick = (e)=>{
+      if(e.target.classList.contains('del')){ delHist(parseInt(e.target.dataset.del)); return; }
+      srchEl.value = el.textContent.replace('🔍','').trim();
+      curQ = srchEl.value;
+      srchHistEl.classList.remove('on');
+      addHist(srchEl.value);
+      apply();
+    };
+  });
+}
+function addHist(q){
+  HIST = [q, ...HIST.filter(x=>x!==q)].slice(0,20);
+  save(LS_HIST, HIST);
+}
+function delHist(idx){
+  HIST.splice(idx,1); save(LS_HIST,HIST);
+  showHist(srchEl.value);
+}
+
+// ── Sort ──
+document.getElementById('sortSel').onchange = () => {
+  curSort = document.getElementById('sortSel').value;
+  apply();
+};
+
+// ── Apply filter + search + sort ──
+function apply(){
+  let d = [...DATA];
+  if(curCat !== '全部') d = d.filter(x=>x.category===curCat);
+  if(curQ){
+    const q = curQ.toLowerCase();
+    d = d.filter(x=>x.name.toLowerCase().includes(q)||x.effect.toLowerCase().includes(q)||x.herbs.some(h=>h.includes(q))||x.desc.toLowerCase().includes(q)||x.cure.toLowerCase().includes(q));
+  }
+  if(curSuit) d = d.filter(x=>x.suitable.includes(curSuit));
+  if(onlyTaboo) d = d.filter(x=>x.taboo);
+  if(curSort === 'name') d.sort((a,b)=>a.name.localeCompare(b.name,'zh'));
+  else if(curSort === 'cat') d.sort((a,b)=>a.category.localeCompare(b.category,'zh'));
+  else if(curSort === 'period') d.sort((a,b)=>a.classical_dynasty.localeCompare(b.classical_dynasty,'zh'));
+  else if(curSort === 'herbs') d.sort((a,b)=>a.herbs.length - b.herbs.length);
+  else if(curSort === 'rnd') d.sort(()=>Math.random()-.5);
+  filtered = d;
+  renderGrid();
+  document.getElementById('rsCount').innerHTML = `共 <strong>${filtered.length}</strong> 条方剂`;
+  document.getElementById('emp').style.display = filtered.length ? 'none' : 'block';
+  updateCmpBtn();
+}
+
+// ── Grid ──
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = filtered.map((d,i) => {
+    const isFav = FAVS.includes(d.id);
+    const isCmp = CMPS.includes(d.id);
+    const isSel = isCmp ? ' sel-card' : '';
+    const favOn = isFav ? ' on' : '';
+    const selOn = isCmp ? ' on' : '';
+    const effClass = studyMode ? ' hidden' : '';
+    const suitTags = d.suitable.slice(0,2).map(s=>`<span class="tag-suit">${s}</span>`).join('');
+    const tabooTag = d.taboo ? `<span class="tag-tabo">⚠️${d.taboo}</span>` : '';
+    return `<div class="card${isSel}" data-i="${i}" role="listitem">
+      <div class="sel${selOn}" data-sel="${d.id}">✓</div>
+      <div class="fav${favOn}" data-fav="${d.id}">❤️</div>
+      <div class="card-n">${d.name}</div>
+      <div class="card-cat">${d.category}</div>
+      <div class="card-effect${effClass}">${d.effect}</div>
+      <div class="card-herbs">${d.herbs.slice(0,5).map(h=>`<span class="herb-tag">${h}${d.herb_doses[h]?d.herb_doses[h]+'g':'g'}</span>`).join('')}${d.herbs.length>5?'<span class="herb-tag">…</span>':''}</div>
+      <div class="card-tags">${suitTags}${tabooTag}</div>
+      <div class="card-dsc"><span class="src">${d.classical}</span><span class="period">${d.classical_dynasty}</span></div>
+    </div>`;
+  }).join('');
+  // Card click
+  grid.querySelectorAll('.card').forEach(el => {
+    el.addEventListener('click', e => {
+      if(e.target.closest('.fav')){ e.stopPropagation(); toggleFav(parseInt(e.target.dataset.fav)); return; }
+      if(e.target.closest('.sel')){ e.stopPropagation(); toggleCmp(parseInt(e.target.dataset.sel)); return; }
+      mIdx = parseInt(el.dataset.i);
+      openMd();
+    });
+  });
+}
+
+// ── Favorites ──
+function toggleFav(id){
+  if(FAVS.includes(id)) FAVS = FAVS.filter(x=>x!==id);
+  else FAVS.push(id);
+  save(LS_FAV, FAVS);
+  document.getElementById('favBdg').textContent = FAVS.length;
+  document.getElementById('favBtn').classList.toggle('on', FAVS.length>0);
+  renderGrid();
+  renderFavPanel();
+}
+function renderFavPanel(){
+  const body = document.getElementById('favPanelBody');
+  if(!FAVS.length){ body.innerHTML = '<div class="fav-emp">暂无收藏<br><br>点击方剂卡片上的 ❤️ 添加</div>'; return; }
+  body.innerHTML = FAVS.map(id => {
+    const d = DATA.find(x=>x.id===id);
+    if(!d) return '';
+    const med = MEDS[id] || {};
+    return `<div class="fav-item" data-id="${id}">
+      <div class="fav-item-icon">🌿</div>
+      <div class="fav-item-info">
+        <div class="fav-item-name">${d.name}</div>
+        <div class="fav-item-meta">${d.category} · ${d.herbs.length}味药</div>
+        ${med.lastDate ? `<div class="fav-item-meta" style="color:var(--c4)">上次服用: ${med.lastDate}</div>` : ''}
+      </div>
+      <button class="fav-item-del" data-del="${id}">✕</button>
+    </div>`;
+  }).join('');
+  body.querySelectorAll('.fav-item').forEach(el=>{
+    el.querySelector('.fav-item-del').onclick = e => { e.stopPropagation(); toggleFav(parseInt(el.dataset.id)); };
+    el.onclick = () => { openMdById(parseInt(el.dataset.id)); };
+  });
+}
+
+// ── Compare ──
+function toggleCmp(id){
+  if(CMPS.includes(id)){ CMPS = CMPS.filter(x=>x!==id); }
+  else {
+    if(CMPS.length >= 4){ toast('最多对比4个方剂'); return; }
+    CMPS.push(id);
+  }
+  save(LS_CMP, CMPS);
+  updateCmpBtn();
+  renderGrid();
+  if(cmpPanelOn) renderCmpPanel();
+}
+function updateCmpBtn(){
+  const bdg = document.getElementById('cmpBdg');
+  bdg.textContent = CMPS.length;
+  bdg.style.display = CMPS.length ? 'flex' : 'none';
+}
+function renderCmpPanel(){
+  const bd = document.getElementById('cmpBd');
+  const count = document.getElementById('cmpCount');
+  count.textContent = `（${CMPS.length}/4）`;
+  bd.innerHTML = CMPS.map(id => {
+    const d = DATA.find(x=>x.id===id);
+    if(!d) return '';
+    return `<div class="cmp-col">
+      <button class="cmp-remove" data-rm="${id}">✕</button>
+      <div class="cmp-n">${d.name}</div>
+      <div class="cmp-cat">${d.category}</div>
+      <div class="cmp-row"><span class="cmp-lbl">功效</span><span class="cmp-val">${d.effect}</span></div>
+      <div class="cmp-row"><span class="cmp-lbl">组成</span><span class="cmp-val">${d.herbs.slice(0,4).join('、')}${d.herbs.length>4?'…':''}</span></div>
+      <div class="cmp-row"><span class="cmp-lbl">来源</span><span class="cmp-val">${d.classical}</span></div>
+      <div class="cmp-row"><span class="cmp-lbl">朝代</span><span class="cmp-val">${d.classical_dynasty}</span></div>
+      ${d.taboo ? `<div class="cmp-row"><span class="cmp-lbl" style="color:var(--c3)">禁忌</span><span class="cmp-val" style="color:var(--c3)">${d.taboo}</span></div>` : ''}
+    </div>`;
+  }).join('');
+  bd.querySelectorAll('.cmp-remove').forEach(el=>{
+    el.onclick = () => toggleCmp(parseInt(el.dataset.rm));
+  });
+}
+document.getElementById('cmpBtn').onclick = () => {
+  cmpPanelOn = !cmpPanelOn;
+  document.getElementById('cmpPanel').classList.toggle('on', cmpPanelOn);
+  if(cmpPanelOn) renderCmpPanel();
+};
+document.getElementById('cmpClose').onclick = () => {
+  cmpPanelOn = false;
+  document.getElementById('cmpPanel').classList.remove('on');
+};
+document.getElementById('cmpClear').onclick = () => {
+  CMPS = [];
+  save(LS_CMP, CMPS);
+  updateCmpBtn();
+  renderGrid();
+  renderCmpPanel();
+  toast('已清空对比');
+};
+document.getElementById('cmpAddMore').onclick = () => {
+  cmpPanelOn = false;
+  document.getElementById('cmpPanel').classList.remove('on');
+  toast('请在网格中点击方剂卡片添加');
+};
+
+// ── Detail Modal ──
+function openMdById(id){
+  const idx = filtered.findIndex(x=>x.id===id);
+  if(idx>=0){ mIdx = idx; openMd(); }
+  else { mIdx = 0; openMd(); }
+}
+function openMd(){
+  const d = filtered[mIdx];
+  if(!d) return;
+  const isFav = FAVS.includes(d.id);
+  const pairHtml = d.herb_pairs && d.herb_pairs.length
+    ? d.herb_pairs.map(p=>`<div class="pair-item"><div><div class="pair-h">${p.split('：')[0]}</div><div class="pair-d">${p.split('：')[1]}</div></div></div>`).join('')
+    : `<div style="color:var(--mt);font-size:.82rem">暂无药对数据</div>`;
+  const suitHtml = d.suitable.map(s=>`<span class="suit-tag">${s}</span>`).join('');
+  const tabooHtml = d.taboo ? `<div class="taboo-warn"><span>⚠️</span><span>${d.taboo}</span></div>` : `<div class="taboo-warn hidden"></div>`;
+  const med = MEDS[d.id] || {};
+  const shareUrl = `${location.origin}${location.pathname}?id=${d.id}`;
+
+  document.getElementById('mdTl').textContent = d.name;
+  document.getElementById('mdBd').innerHTML = `
+    <div class="md-h">
+      <div class="ico">🌿</div>
+      <div class="met">
+        <div class="nm">${d.name}</div>
+        <span class="cat">${d.category}</span>
+        <span class="src">${d.classical} · ${d.classical_year} · ${d.classical_author}</span>
+      </div>
+      <div class="md-h-actions">
+        <button class="md-fav${isFav?' on':''}" id="mdFav" data-id="${d.id}">❤️</button>
+        <button class="md-share" id="mdShare" data-url="${shareUrl}" title="复制链接">📤</button>
+      </div>
+    </div>
+    <div class="md-row">
+      <span class="md-tag grn">📋 ${d.dose}</span>
+      <span class="md-tag gld">⏱ ${d.usage}</span>
+      <span class="md-tag blu">📅 ${d.classical_dynasty}</span>
+    </div>
+    ${tabooHtml}
+    <div class="md-sec">
+      <div class="md-sb">功效主治</div>
+      <div class="md-tx">${d.effect}</div>
+    </div>
+    <div class="md-sec">
+      <div class="md-sb">组成药物</div>
+      <div class="md-herbs">${d.herbs.map(h=>`<span class="md-herb">${h} ${d.herb_doses[h]?d.herb_doses[h]+'g':'g'}</span>`).join('')}</div>
+    </div>
+    <div class="md-sec">
+      <div class="md-sb">经典来源</div>
+      <div class="cls-box">
+        <div class="cls-src">📜 ${d.classical}</div>
+        <div class="cls-meta">${d.classical_dynasty} · ${d.classical_author} · ${d.classical_year}</div>
+        <div class="cls-desc">${d.classical_desc}</div>
+      </div>
+    </div>
+    <div class="md-sec">
+      <div class="md-sb">药对配伍</div>
+      ${pairHtml}
+    </div>
+    <div class="md-sec">
+      <div class="md-sb">适宜人群</div>
+      <div class="suit-tags">${suitHtml}</div>
+    </div>
+    <div class="med-rec">
+      <div class="md-sb" style="margin-bottom:10px">💊 服药记录</div>
+      <div class="med-rec-row">
+        <label>服用日期</label>
+        <input type="date" id="medDate" value="${med.lastDate||''}">
+      </div>
+      <div class="med-rec-row">
+        <label>剩余剂量</label>
+        <input type="text" id="medDose" placeholder="如: 3剂" value="${med.dose||''}">
+      </div>
+      <div class="med-rec-row">
+        <label>备注</label>
+        <input type="text" id="medNote" placeholder="记录…" value="${med.note||''}">
+      </div>
+      <div class="med-rec-row">
+        <button class="med-rec-save" id="medSave" data-id="${d.id}">保存记录</button>
+      </div>
+      <div class="med-rec-msg" id="medMsg">✓ 记录已保存</div>
+    </div>
+  `;
+
+  // Fav
+  document.getElementById('mdFav').onclick = () => toggleFav(parseInt(document.getElementById('mdFav').dataset.id));
+  // Share
+  document.getElementById('mdShare').onclick = () => {
+    const url = document.getElementById('mdShare').dataset.url;
+    navigator.clipboard.writeText(url).then(()=>toast('链接已复制！')).catch(()=>toast('复制失败'));
+  };
+  // Med save
+  document.getElementById('medSave').onclick = () => {
+    const id = parseInt(document.getElementById('medSave').dataset.id);
+    MEDS[id] = {
+      lastDate: document.getElementById('medDate').value,
+      dose: document.getElementById('medDose').value,
+      note: document.getElementById('medNote').value
+    };
+    save(LS_MED, MEDS);
+    document.getElementById('medMsg').classList.add('on');
+    setTimeout(()=>document.getElementById('medMsg').classList.remove('on'),2000);
+  };
+
+  document.getElementById('mdPrev').disabled = mIdx <= 0;
+  document.getElementById('mdNext').disabled = mIdx >= filtered.length - 1;
+  document.getElementById('md').classList.add('on');
+}
+document.getElementById('mdCls').onclick = () => document.getElementById('md').classList.remove('on');
+document.getElementById('md').onclick = e => { if(e.target === document.getElementById('md')) document.getElementById('md').classList.remove('on'); };
+document.getElementById('mdPrev').onclick = () => { mIdx = Math.max(0,mIdx-1); openMd(); };
+document.getElementById('mdNext').onclick = () => { mIdx = Math.min(filtered.length-1,mIdx+1); openMd(); };
+
+// ── Favorites Panel ──
+function renderMedRec(){
+  const body = document.getElementById('favMedRec');
+  if(!FAVS.length){ body.innerHTML = '<div class="fav-emp">暂无收藏，无服药记录</div>'; return; }
+  body.innerHTML = FAVS.map(id => {
+    const d = DATA.find(x=>x.id===id);
+    if(!d) return '';
+    const med = MEDS[id] || {};
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--bd)">
+      <div style="font-weight:700;font-size:.875rem;margin-bottom:6px">${d.name}</div>
+      <div style="font-size:.72rem;color:var(--mt);margin-bottom:4px">${d.category}</div>
+      <div style="font-size:.75rem;color:var(--tx)">
+        ${med.lastDate ? `<div>📅 最近: ${med.lastDate}</div>` : ''}
+        ${med.dose ? `<div>💊 剩余: ${med.dose}</div>` : ''}
+        ${med.note ? `<div>📝 ${med.note}</div>` : ''}
+        ${!med.lastDate && !med.dose && !med.note ? '<span style="color:var(--mt)">暂无记录</span>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+document.getElementById('favTabList').onclick = () => { curFavTab='list'; document.getElementById('favTabList').classList.add('on'); document.getElementById('favTabRec').classList.remove('on'); document.getElementById('favPanelBody').classList.remove('fav-med-rec'); document.getElementById('favMedRec').classList.remove('on'); };
+document.getElementById('favTabRec').onclick = () => { curFavTab='rec'; document.getElementById('favTabRec').classList.add('on'); document.getElementById('favTabList').classList.remove('on'); document.getElementById('favPanelBody').classList.add('fav-med-rec'); document.getElementById('favMedRec').classList.add('on'); renderMedRec(); };
+document.getElementById('favBtn').onclick = () => {
+  favPanelOn = !favPanelOn;
+  document.getElementById('favPanel').classList.toggle('on', favPanelOn);
+  if(favPanelOn){ renderFavPanel(); if(curFavTab==='rec') renderMedRec(); }
+};
+document.getElementById('favPanelClose').onclick = () => {
+  favPanelOn = false;
+  document.getElementById('favPanel').classList.remove('on');
+};
+
+// ── Keyboard ──
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    document.getElementById('md').classList.remove('on');
+    if(favPanelOn){ favPanelOn=false; document.getElementById('favPanel').classList.remove('on'); }
+    if(cmpPanelOn){ cmpPanelOn=false; document.getElementById('cmpPanel').classList.remove('on'); }
+    closeMobFilter();
+  }
+  if(document.getElementById('md').classList.contains('on')){
+    if(e.key === 'ArrowLeft'){ mIdx=Math.max(0,mIdx-1); openMd(); }
+    if(e.key === 'ArrowRight'){ mIdx=Math.min(filtered.length-1,mIdx+1); openMd(); }
+  }
+});
+
+// ── Init filter bar (show if suit/taboo active) ──
+initFilterBar();
+buildCatChips();
+apply();
+
+// Show filter bar if filters active
+function showFltBar(){
+  const bar = document.getElementById('fltBar');
+  bar.classList.add('on');
+}
+showFltBar();
+
+// Daily
+initDaily();
+
+// ── Share via URL param ──
+(function(){
+  const params = new URLSearchParams(location.search);
+  const id = parseInt(params.get('id'));
+  if(id){ setTimeout(()=>openMdById(id), 300); }
+})();
+
+// ── Init ──
+document.getElementById('favBdg').textContent = FAVS.length;
+document.getElementById('favBtn').classList.toggle('on', FAVS.length>0);
+</script>
 </body>
 </html>
