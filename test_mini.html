@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html><head><title>TEST</title></head><body>
+<script>
+const DATA = [
+  {"id":1,"name":"测试方剂1","category":"解表剂","herbs":["麻黄","桂枝"],"herb_doses":{"麻黄":9,"桂枝":6}},
+  {"id":2,"name":"测试方剂2","category":"清热剂","herbs":["石膏","知母"],"herb_doses":{"石膏":30,"知母":12}},
+  {"id":3,"name":"测试方剂3","category":"补益剂","herbs":["人参","黄芪"],"herb_doses":{"人参":10,"黄芪":20}}
+];
+const LS_FAV = 'test_favs';
+</script>
+<pre id="out"></pre>
+<script>
+document.getElementById('out').textContent = 'DATA loaded: ' + DATA.length + ' items';
+</script>
+</body></html>
