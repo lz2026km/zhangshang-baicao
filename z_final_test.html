@@ -126,7 +126,21 @@ html,body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);co
   <div class="panel-hdr">❤️ 我的收藏 <button class="panel-close" id="favClose">✕</button></div>
   <div id="favList"></div>
 </div>
-<script src="data_ws.js"></script>
+<script>
+// Load data via dynamic script injection (GitHub raw, 3.7MB)
+(function() {
+  var script = document.createElement('script');
+  script.src = 'https://raw.githubusercontent.com/lz2026km/zhangshang-baicao/main/data_ws.js';
+  script.onerror = function() {
+    document.getElementById('loading').innerHTML = '<div style="color:#c62828">数据加载失败，请检查网络</div>';
+  };
+  script.onload = function() {
+    if (window.DATA && window.DATA.length > 0) initApp();
+    else document.getElementById('loading').innerHTML = '<div style="color:#c62828">数据加载失败</div>';
+  };
+  document.head.appendChild(script);
+})();
+</script>
 <script>
 var DATA = typeof window.DATA !== 'undefined' ? window.DATA : [];
 var filtered = [];
