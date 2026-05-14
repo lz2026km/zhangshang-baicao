@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Render Test</title>
+<style>
+body { font-family: sans-serif; }
+#grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 12px; }
+.card { background: #f5f5f5; border-radius: 8px; padding: 12px; }
+.card-n { font-weight: bold; font-size: 1.1rem; }
+.card-cat { color: #666; font-size: 0.85rem; }
+.card-herbs { margin-top: 6px; font-size: 0.8rem; color: #333; }
+.herb-tag { background: #e8f5e9; padding: 2px 6px; border-radius: 4px; margin: 2px; display: inline-block; }
+</style>
+</head>
+<body>
+<h1>Render Test: <span id="count">0</span> cards</h1>
+<div id="grid"></div>
+<script src="zhangshang_baicao_v40.html" charset="UTF-8"></script>
+<script>
+const countEl = document.getElementById('count');
+const gridEl = document.getElementById('grid');
+
+function renderCards() {
+  const cards = filtered.slice(0, 20).map((d, i) => {
+    return `<div class="card">
+      <div class="card-n">${d.name}</div>
+      <div class="card-cat">${d.category}</div>
+      <div class="card-herbs">${d.herbs.slice(0,5).map(h=>`<span class="herb-tag">${h}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+  gridEl.innerHTML = cards;
+  countEl.textContent = filtered.length;
+}
+
+setTimeout(renderCards, 500);
+</script>
+</body>
+</html>
