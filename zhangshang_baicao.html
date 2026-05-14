@@ -136,15 +136,18 @@ html,body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);co
 // Load data from external source
 (function() {
   var script = document.createElement('script');
-  // Try GitHub raw first
-  script.src = 'https://raw.githubusercontent.com/lz2026km/zhangshang-baicao/main/data.js';
+  // Try GitHub Pages first (faster CDN), then GitHub raw
+  script.src = 'https://lz2026km.github.io/zhangshang-baicao/data.js';
   script.onerror = function() {
-    // Fallback: use inline data if external fails
-    console.warn('External data load failed, using embedded DATA');
-    document.getElementById('loading').innerHTML = '<div style="color:var(--c3)">数据加载失败，请刷新重试</div>';
+    // Fallback to GitHub raw
+    script.src = 'https://raw.githubusercontent.com/lz2026km/zhangshang-baicao/main/data.js';
   };
   script.onload = function() {
-    initApp();
+    if (typeof window.DATA !== 'undefined' && window.DATA.length > 0) {
+      initApp();
+    } else {
+      document.getElementById('loading').innerHTML = '<div style="color:var(--c3)">数据加载失败，请刷新重试</div>';
+    }
   };
   document.head.appendChild(script);
 })();
