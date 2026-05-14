@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>掌上百草 v4.0 — 中医方剂大全</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#fafafa;--card-bg:#fff;--tx:#333;--mt:#888;--ac:#4caf50;--bd:#ddd;--hl:#e8f5e9;--tx2:#666;--c3:#c62828;--c4:#1565c0}
+@media(prefers-color-scheme:dark){:root{--bg:#121212;--card-bg:#1e1e1e;--tx:#e0e0e0;--mt:#888;--bd:#333;--hl:#1b5e20;--tx2:#aaa}}
+html,body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);height:100%;overflow:hidden}
+.hdr{background:var(--card-bg);border-bottom:1px solid var(--bd);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hdr-tl{font-size:1.1rem;font-weight:600;display:flex;align-items:center;gap:6px}
+.hdr-tl span{font-size:.75rem;color:var(--mt)}
+.hdr input{flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font-size:.95rem}
+.hdr input:focus{outline:2px solid var(--ac);border-color:var(--ac)}
+.hdr-btn{background:none;border:1px solid var(--bd);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:.9rem;color:var(--tx);transition:all .15s}
+.hdr-btn:hover{background:var(--hl);border-color:var(--ac)}
+.hdr-btn.active{background:var(--ac);color:#fff;border-color:var(--ac)}
+#dgPanel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card-bg);border-radius:12px;padding:20px;width:min(600px,95vw);max-height:85vh;overflow-y:auto;z-index:1000;box-shadow:0 20px 60px rgba(0,0,0,.3);display:none}
+#dgPanel.show{display:block}
+.dg-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.dg-hdr h3{font-size:1.1rem}
+#dgClose{background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px 8px}
+.sym-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-bottom:16px}
+.sym-chip{background:var(--hl);border:1px solid var(--bd);border-radius:20px;padding:6px 12px;font-size:.85rem;cursor:pointer;text-align:center;transition:all .15s}
+.sym-chip:hover,.sym-chip.sel{background:var(--ac);color:#fff;border-color:var(--ac)}
+.sym-chip.sel{font-weight:600}
+#dgResult{margin-top:16px}
+#dgResult .res-item{background:var(--bg);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer}
+#dgResult .res-item:hover{background:var(--hl)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:none}
+.overlay.show{display:block}
+.sb{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 16px;background:var(--card-bg);border-bottom:1px solid var(--bd)}
+.cat-btn{background:none;border:1px solid var(--bd);border-radius:20px;padding:5px 12px;font-size:.82rem;cursor:pointer;color:var(--tx);transition:all .15s}
+.cat-btn:hover,.cat-btn.active{background:var(--ac);color:#fff;border-color:var(--ac)}
+.sort-sel{padding:5px 10px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font-size:.85rem}
+#grid{overflow-y:auto;flex:1;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-content:start}
+.card{background:var(--card-bg);border-radius:10px;padding:14px;cursor:pointer;transition:all .2s;border:1px solid var(--bd)}
+.card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.card.sel-card{border:2px solid var(--ac)}
+.card .sel{display:none;text-align:center;font-size:.8rem;color:var(--ac)}
+.card.sel-card .sel{display:block;position:absolute;top:8px;right:8px}
+.card-n{font-weight:600;font-size:1.05rem;margin-bottom:4px}
+.card-cat{color:var(--mt);font-size:.8rem;margin-bottom:6px}
+.card-effect{color:var(--tx2);font-size:.88rem;line-height:1.5;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-herbs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.herb-tag{background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:4px;font-size:.75rem}
+.tag-suit{background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:3px;font-size:.72rem;margin-right:4px}
+.tag-tabo{background:#ffebee;color:#c62828;padding:1px 6px;border-radius:3px;font-size:.72rem}
+.card-dsc{color:var(--mt);font-size:.75rem;display:flex;gap:8px}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;justify-content:center;align-items:center;padding:20px}
+#modal.show{display:flex}
+.md{background:var(--card-bg);border-radius:12px;width:min(700px,100%);max-height:90vh;overflow-y:auto;padding:20px}
+.md-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.md h2{font-size:1.3rem}
+.md .cat{color:var(--mt);font-size:.85rem}
+.md .src{color:var(--mt);font-size:.82rem;margin:4px 0}
+.md-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.md-tag{background:var(--hl);padding:4px 10px;border-radius:6px;font-size:.8rem}
+.md-herbs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.md-herb{background:#e8f5e9;color:#2e7d32;padding:4px 10px;border-radius:6px;font-size:.85rem}
+.fav-panel,#cmpPanel{position:fixed;top:0;right:0;width:min(380px,90vw);height:100vh;background:var(--card-bg);box-shadow:-4px 0 20px rgba(0,0,0,.15);z-index:600;padding:16px;overflow-y:auto;transform:translateX(100%);transition:transform .3s}
+.fav-panel.show,#cmpPanel.show{transform:translateX(0)}
+.panel-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;font-size:1.05rem;font-weight:600}
+.panel-close{background:none;border:none;font-size:1.2rem;cursor:pointer}
+#favList .fav-item,#cmpList .cmp-item{background:var(--bg);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer}
+#favList .fav-item:hover,#cmpList .cmp-item:hover{background:var(--hl)}
+#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:2000;font-size:1.1rem;gap:16px}
+#loading .spinner{width:40px;height:40px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="loading">
+  <div class="spinner"></div>
+  <div>正在加载方剂数据...</div>
+</div>
+<div class="hdr">
+  <div class="hdr-tl">🌿 掌上百草 <span>v4.0</span></div>
+  <input type="search" id="searchInput" placeholder="搜索方剂名称/功效/组成…" x-webkit-speech>
+  <button class="hdr-btn" id="cmpBtn" title="对比">⚖️ 对比</button>
+  <button class="hdr-btn" id="favBtn">❤️ 收藏夹</button>
+  <button class="hdr-btn" id="thmBtn">🌓 深色模式</button>
+  <button class="hdr-btn" id="dgBtn">🩺 智能诊断</button>
+</div>
+<div class="sb">
+  <button class="cat-btn active" data-cat="all">全部<span id="totalCount">—</span></button>
+  <button class="cat-btn" data-cat="安神剂">安神剂</button>
+  <button class="cat-btn" data-cat="消导剂">消导剂</button>
+  <button class="cat-btn" data-cat="理血剂">理血剂</button>
+  <button class="cat-btn" data-cat="补益剂">补益剂</button>
+  <button class="cat-btn" data-cat="清热剂">清热剂</button>
+  <button class="cat-btn" data-cat="解表剂">解表剂</button>
+  <button class="cat-btn" data-cat="祛湿剂">祛湿剂</button>
+  <button class="cat-btn" data-cat="温里剂">温里剂</button>
+  <button class="cat-btn" data-cat="化痰止咳">化痰止咳</button>
+  <button class="cat-btn" data-cat="理气剂">理气剂</button>
+  <button class="cat-btn" data-cat="收涩剂">收涩剂</button>
+  <button class="cat-btn" data-cat="泻下剂">泻下剂</button>
+  <button class="cat-btn" data-cat="和解剂">和解剂</button>
+  <button class="cat-btn" data-cat="祛风剂">祛风剂</button>
+  <select class="sort-sel" id="sortSel">
+    <option value="default">默认排序</option>
+    <option value="name">按名称</option>
+    <option value="cat">按分类</option>
+    <option value="period">按朝代</option>
+    <option value="herbs">按药味数</option>
+  </select>
+</div>
+<div id="grid"></div>
+<div class="overlay" id="ov"></div>
+<div id="dgPanel">
+  <div class="dg-hdr"><h3>🩺 智能诊断</h3><button id="dgClose">✕</button></div>
+  <p style="color:var(--mt);font-size:.85rem;margin-bottom:12px">选择您的证型，系统将推荐匹配的方剂：</p>
+  <div class="sym-grid" id="symGrid"></div>
+  <div id="dgResult"></div>
+</div>
+<div id="modal"><div class="md" id="mdContent"></div></div>
+<div id="cmpPanel">
+  <div class="panel-hdr">⚖️ 方剂对比 <span id="cmpCount">(0/4)</span><button class="panel-close" id="cmpClose">✕</button></div>
+  <div id="cmpList"></div>
+  <button class="hdr-btn" id="cmpClear" style="margin-top:8px">清空对比</button>
+</div>
+<div id="favPanel" class="fav-panel">
+  <div class="panel-hdr">❤️ 我的收藏 <button class="panel-close" id="favClose">✕</button></div>
+  <div id="favList"></div>
+</div>
+<script>
+// Load data via dynamic script injection (GitHub raw, 3.7MB)
+(function() {
+  var script = document.createElement('script');
+  script.src = 'https://raw.githubusercontent.com/lz2026km/zhangshang-baicao/main/data_ws.js';
+  script.onerror = function() {
+    document.getElementById('loading').innerHTML = '<div style="color:#c62828">数据加载失败，请检查网络</div>';
+  };
+  script.onload = function() {
+    if (window.DATA && window.DATA.length > 0) initApp();
+    else document.getElementById('loading').innerHTML = '<div style="color:#c62828">数据加载失败</div>';
+  };
+  document.head.appendChild(script);
+})();
+</script>
+<script>
+var DATA = typeof window.DATA !== 'undefined' ? window.DATA : [];
+var filtered = [];
+var curCat = 'all';
+var curSort = 'default';
+var curKw = '';
+var FAVS = JSON.parse(localStorage.getItem('zbb_favs') || '[]');
+var CMPS = JSON.parse(localStorage.getItem('zbb_cmps') || '[]');
+var isDark = localStorage.getItem('zbb_theme') === 'dark';
+function initApp() {
+  filtered = [...DATA];
+  if (isDark) {
+    document.documentElement.style.setProperty('--bg','#121212');
+    document.documentElement.style.setProperty('--card-bg','#1e1e1e');
+    document.documentElement.style.setProperty('--tx','#e0e0e0');
+    document.documentElement.style.setProperty('--bd','#333');
+  }
+  var cnt = {};
+  DATA.forEach(function(d){ cnt[d.category] = (cnt[d.category]||0)+1; });
+  document.getElementById('totalCount').textContent = DATA.length;
+  document.getElementById('loading').style.display = 'none';
+  buildSynGrid();
+  renderGrid();
+  setupEvents();
+}
+function buildSynGrid() {
+  var symptoms = ['气虚感冒','风热感冒','风寒表实','风寒表虚','肺气虚','肺热咳嗽','肺燥咳嗽','肺阴不足','脾胃虚寒','脾胃湿热','肝气郁结','肝火上炎','肝阳上亢','气血两虚','心脾两虚','心肾不交','心血不足','心血瘀阻','热毒疮疡','瘀血内停','肾气不固','肾虚水泛','肾阳不足','肾阴不足','痰迷心窍','痰湿蕴肺','痰湿困脾','食积不化','风湿痹痛','水湿内停','外感表证','实热内盛','跌打损伤','月经不调','痛经','小儿疳积','自汗盗汗','遗精滑泄'];
+  var symGrid = document.getElementById('symGrid');
+  symGrid.innerHTML = symptoms.map(function(s){
+    return '<div class="sym-chip" data-sym="'+s+'">'+s+'</div>';
+  }).join('');
+}
+function renderGrid() {
+  var grid = document.getElementById('grid');
+  var html = filtered.map(function(d,i){
+    var isFav = FAVS.indexOf(d.id) >= 0;
+    var isCmp = CMPS.indexOf(d.id) >= 0;
+    var sel = isCmp ? ' sel-card' : '';
+    var suits = (d.suitable||[]).slice(0,2).map(function(s){ return '<span class="tag-suit">'+s+'</span>'; }).join('');
+    var herbs = (d.herbs||[]).slice(0,5).map(function(h){ return '<span class="herb-tag">'+h+'</span>'; }).join('');
+    var more = d.herbs&&d.herbs.length>5 ? '<span class="herb-tag">…</span>' : '';
+    return '<div class="card'+sel+'" data-i="'+i+'"><div class="card-n">'+d.name+'</div><div class="card-cat">'+d.category+' | '+d.period+'</div><div class="card-effect">'+d.effect+'</div><div class="card-herbs">'+herbs+more+'</div><div class="card-dsc">'+suits+'</div></div>';
+  }).join('');
+  grid.innerHTML = html;
+  grid.scrollTop = 0;
+  document.getElementById('totalCount').textContent = filtered.length;
+}
+function setupEvents() {
+  document.getElementById('searchInput').addEventListener('input', function(){
+    curKw = this.value.trim().toLowerCase();
+    applyFilters();
+  });
+  document.querySelectorAll('.cat-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.cat-btn').forEach(function(b){b.classList.remove('active');});
+      btn.classList.add('active');
+      curCat = btn.dataset.cat;
+      applyFilters();
+    });
+  });
+  document.getElementById('sortSel').addEventListener('change', function(){
+    curSort = this.value;
+    applyFilters();
+  });
+  document.getElementById('grid').addEventListener('click', function(e){
+    var card = e.target.closest('.card');
+    if (!card) return;
+    var idx = parseInt(card.dataset.i);
+    showModal(filtered[idx]);
+  });
+  document.getElementById('dgBtn').addEventListener('click', function(){
+    document.getElementById('dgPanel').classList.add('show');
+    document.getElementById('ov').classList.add('show');
+  });
+  document.getElementById('dgClose').addEventListener('click', closeDg);
+  document.getElementById('ov').addEventListener('click', closeDg);
+  document.getElementById('symGrid').addEventListener('click', function(e){
+    var chip = e.target.closest('.sym-chip');
+    if (!chip) return;
+    chip.classList.toggle('sel');
+    runDiagnosis();
+  });
+  document.getElementById('dgResult').addEventListener('click', function(e){
+    var item = e.target.closest('.res-item');
+    if (!item) return;
+    var idx = parseInt(item.dataset.i);
+    showModal(filtered[idx]);
+  });
+  document.getElementById('favBtn').addEventListener('click', function(){
+    document.getElementById('favPanel').classList.add('show');
+    renderFav();
+  });
+  document.getElementById('favClose').addEventListener('click', function(){
+    document.getElementById('favPanel').classList.remove('show');
+  });
+  document.getElementById('cmpBtn').addEventListener('click', function(){
+    document.getElementById('cmpPanel').classList.add('show');
+    renderCmp();
+  });
+  document.getElementById('cmpClose').addEventListener('click', function(){
+    document.getElementById('cmpPanel').classList.remove('show');
+  });
+  document.getElementById('cmpClear').addEventListener('click', function(){
+    CMPS = [];
+    localStorage.setItem('zbb_cmps','[]');
+    renderCmp();
+    renderGrid();
+  });
+  document.getElementById('thmBtn').addEventListener('click', function(){
+    isDark = !isDark;
+    document.documentElement.style.setProperty('--bg', isDark ? '#121212' : '#fafafa');
+    document.documentElement.style.setProperty('--card-bg', isDark ? '#1e1e1e' : '#fff');
+    document.documentElement.style.setProperty('--tx', isDark ? '#e0e0e0' : '#333');
+    document.documentElement.style.setProperty('--bd', isDark ? '#333' : '#ddd');
+    localStorage.setItem('zbb_theme', isDark ? 'dark' : 'light');
+  });
+  document.getElementById('modal').addEventListener('click', function(e){
+    if (e.target === this) document.getElementById('modal').classList.remove('show');
+  });
+}
+function closeDg() {
+  document.getElementById('dgPanel').classList.remove('show');
+  document.getElementById('ov').classList.remove('show');
+}
+function applyFilters() {
+  filtered = DATA.filter(function(d){
+    if (curCat !== 'all' && d.category !== curCat) return false;
+    if (curKw) {
+      var txt = (d.name + d.effect + (d.herbs||[]).join('')).toLowerCase();
+      if (!txt.includes(curKw)) return false;
+    }
+    return true;
+  });
+  if (curSort === 'name') filtered.sort(function(a,b){ return a.name.localeCompare(b.name,'zh'); });
+  else if (curSort === 'cat') filtered.sort(function(a,b){ return a.category.localeCompare(b.category,'zh'); });
+  else if (curSort === 'period') filtered.sort(function(a,b){ return (a.period||'').localeCompare(b.period||'','zh'); });
+  else if (curSort === 'herbs') filtered.sort(function(a,b){ return (a.herbs||[]).length - (b.herbs||[]).length; });
+  renderGrid();
+}
+function runDiagnosis() {
+  var selSymptoms = [].slice.call(document.querySelectorAll('.sym-chip.sel')).map(function(c){ return c.dataset.sym; });
+  if (!selSymptoms.length) {
+    document.getElementById('dgResult').innerHTML = '<p style="color:var(--mt)">请选择证型</p>';
+    return;
+  }
+  var results = DATA.filter(function(d){
+    return selSymptoms.some(function(sym){
+      return (d.syndromes||[]).indexOf(sym) >= 0;
+    });
+  }).slice(0,20);
+  document.getElementById('dgResult').innerHTML = '<p style="margin-bottom:8px;color:var(--mt)">找到 <strong>'+results.length+'</strong> 个匹配方剂（显示前20个）：</p>' +
+    results.map(function(d,i){
+      var di = DATA.indexOf(d);
+      return '<div class="res-item" data-i="'+di+'"><strong>'+d.name+'</strong> <span style="color:var(--mt)">'+d.category+'</span><div style="font-size:.82rem;color:var(--tx2)">'+d.effect+'</div></div>';
+    }).join('');
+}
+function showModal(d) {
+  document.getElementById('mdContent').innerHTML = '<div class="md-h"><div><h2>'+d.name+'</h2><span class="cat">'+d.category+' | '+d.period+'</span><div class="src">'+d.classical+'</div></div><button class="panel-close" onclick="document.getElementById(\'modal\').classList.remove(\'show\')">✕</button></div><div class="md-row"><span class="md-tag">'+d.cure+'</span></div><div class="md-herbs">'+(d.herbs||[]).map(function(h){ return '<span class="md-herb">'+h+'</span>'; }).join('')+'</div><div style="color:var(--tx2);font-size:.88rem;line-height:1.6;margin-bottom:12px">'+d.effect+'</div>'+(d.suitable&&d.suitable.length?'<div style="margin-bottom:12px"><strong>适宜：</strong>'+d.suitable.join('、')+'</div>':'')+(d.syndromes&&d.syndromes.length?'<div><strong>对应证型：</strong>'+d.syndromes.join('、')+'</div>':'');
+  document.getElementById('modal').classList.add('show');
+}
+function renderFav() {
+  var items = DATA.filter(function(d){ return FAVS.indexOf(d.id) >= 0; });
+  document.getElementById('favList').innerHTML = items.length ? items.map(function(d){
+    return '<div class="fav-item" data-id="'+d.id+'"><strong>'+d.name+'</strong><br><span style="color:var(--mt);font-size:.8rem">'+d.category+' · '+d.period+'</span></div>';
+  }).join('') : '<p style="color:var(--mt)">暂无收藏</p>';
+  document.getElementById('favList').querySelectorAll('.fav-item').forEach(function(el){
+    el.addEventListener('click', function(){
+      var did = parseInt(el.dataset.id);
+      var d = DATA.find(function(x){ return x.id === did; });
+      if (d) showModal(d);
+    });
+  });
+}
+function renderCmp() {
+  var items = DATA.filter(function(d){ return CMPS.indexOf(d.id) >= 0; });
+  document.getElementById('cmpCount').textContent = '('+items.length+'/4)';
+  document.getElementById('cmpList').innerHTML = items.map(function(d){
+    return '<div class="cmp-item" data-id="'+d.id+'"><strong>'+d.name+'</strong><br><span style="color:var(--mt);font-size:.8rem">'+d.category+' · '+d.herbs.slice(0,4).join('、')+'</span></div>';
+  }).join('');
+  document.getElementById('cmpList').querySelectorAll('.cmp-item').forEach(function(el){
+    el.addEventListener('click', function(){
+      var did = parseInt(el.dataset.id);
+      var d = DATA.find(function(x){ return x.id === did; });
+      if (d) showModal(d);
+    });
+  });
+}
+if (DATA.length > 0) initApp();
+else document.getElementById('loading').innerHTML = '<div style="color:var(--c3)">数据加载失败</div>';
+</script>
+</body>
+</html>
