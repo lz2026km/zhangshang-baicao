@@ -741,7 +741,7 @@ function apply(){
   if(onlyTaboo) d = d.filter(x=>x.taboo);
   if(curSort === 'name') d.sort((a,b)=>a.name.localeCompare(b.name,'zh'));
   else if(curSort === 'cat') d.sort((a,b)=>a.category.localeCompare(b.category,'zh'));
-  else if(curSort === 'period') d.sort((a,b)=>a.classical_dynasty.localeCompare(b.classical_dynasty,'zh'));
+  else if(curSort === 'period') d.sort((a,b)=>(a.period||'').localeCompare(b.period||'','zh'));
   else if(curSort === 'herbs') d.sort((a,b)=>a.herbs.length - b.herbs.length);
   else if(curSort === 'rnd') d.sort(()=>Math.random()-.5);
   filtered = d;
@@ -769,9 +769,9 @@ function renderGrid(){
       <div class="card-n">${d.name}${d.alias&&d.alias.length?`<span class="alias-badge">${d.alias[0]}</span>`:``}</div>
       <div class="card-cat">${d.category}</div>
       <div class="card-effect${effClass}">${d.effect}</div>
-      <div class="card-herbs">${d.herbs.slice(0,5).map(h=>`<span class="herb-tag">${h}${d.herb_doses[h]?d.herb_doses[h]+'g':'g'}</span>`).join('')}${d.herbs.length>5?'<span class="herb-tag">…</span>':''}</div>
+      <div class="card-herbs">${d.herbs.slice(0,5).map(h=>`<span class="herb-tag">${h}</span>`).join('')}${d.herbs.length>5?'<span class="herb-tag">…</span>':''}</div>
       <div class="card-tags">${suitTags}${tabooTag}${d.toxic_warn?`<span class="tag-tox">${d.toxic_warn}</span>`:``}${d.season_tip?`<span class="tag-sea">${d.season_tip}</span>`:``}</div>
-      <div class="card-dsc"><span class="src">${d.classical}</span><span class="period">${d.classical_dynasty}</span>${d.pediatric_dose?`<span class="ped-dose">👶${d.pediatric_dose}</span>`:``}</div>
+      <div class="card-dsc"><span class="src">${d.classical}</span><span class="period">${d.period}</span></div>
     </div>`;
   }).join('');
   // Card click
@@ -849,7 +849,7 @@ function renderCmpPanel(){
       <div class="cmp-row"><span class="cmp-lbl">功效</span><span class="cmp-val">${d.effect}</span></div>
       <div class="cmp-row"><span class="cmp-lbl">组成</span><span class="cmp-val">${d.herbs.slice(0,4).join('、')}${d.herbs.length>4?'…':''}</span></div>
       <div class="cmp-row"><span class="cmp-lbl">来源</span><span class="cmp-val">${d.classical}</span></div>
-      <div class="cmp-row"><span class="cmp-lbl">朝代</span><span class="cmp-val">${d.classical_dynasty}</span></div>
+      <div class="cmp-row"><span class="cmp-lbl">朝代</span><span class="cmp-val">${d.period}</span></div>
       ${d.taboo ? `<div class="cmp-row"><span class="cmp-lbl" style="color:var(--c3)">禁忌</span><span class="cmp-val" style="color:var(--c3)">${d.taboo}</span></div>` : ''}
     </div>`;
   }).join('');
@@ -905,7 +905,7 @@ function openMd(){
       <div class="met">
         <div class="nm">${d.name}${d.alias&&d.alias.length?`<span class="alias-sm">别名：${d.alias.join('、')}</span>`:``}</div>
         <span class="cat">${d.category}</span>
-        <span class="src">${d.classical} · ${d.classical_year} · ${d.classical_author}</span>
+        <span class="src">${d.classical}</span>
       </div>
       <div class="md-h-actions">
         <button class="md-fav${isFav?' on':''}" id="mdFav" data-id="${d.id}">❤️</button>
@@ -913,9 +913,9 @@ function openMd(){
       </div>
     </div>
     <div class="md-row">
-      <span class="md-tag grn">📋 ${d.dose}</span>
-      <span class="md-tag gld">⏱ ${d.usage}</span>
-      <span class="md-tag blu">📅 ${d.classical_dynasty}</span>
+      <span class="md-tag grn">📋 ${d.cure}</span>
+      <span class="md-tag gld">⏱ ${d.desc}</span>
+      <span class="md-tag blu">📅 ${d.period}</span>
     </div>
     ${tabooHtml}
     ${d.toxic_warn?`<div class="tox-warn">${d.toxic_warn}</div>`:``}
@@ -926,15 +926,14 @@ function openMd(){
     </div>
     <div class="md-sec">
       <div class="md-sb">组成药物</div>
-      <div class="md-herbs">${d.herbs.map(h=>`<span class="md-herb">${h} ${d.herb_doses[h]?d.herb_doses[h]+'g':'g'}</span>`).join('')}</div>
+      <div class="md-herbs">${d.herbs.map(h=>`<span class="md-herb">${h}</span>`).join('')}</div>
       ${d.herbs_detail?`<div class="herb-detail-list">${d.herbs_detail.map(hd=>`<div class="hd-item"><span class="hd-n">${hd.name}</span><span class="hd-dose">${hd.dose}g</span><span class="hd-prop">性${hd.nature} · 味${hd.taste}</span><span class="hd-ch">归${hd.channel}</span><span class="hd-src">${hd.pharmacopeia}</span>${hd.toxic?`<span class="hd-tox">${hd.toxic}</span>`:``}${hd.pregnancy?`<span class="hd-preg">孕妇:${hd.pregnancy}</span>`:``}${hd.food_like?`<span class="hd-food">🍽药食同源</span>`:``}</div>`).join('')}</div>`:``}
     </div>
     <div class="md-sec">
       <div class="md-sb">经典来源</div>
       <div class="cls-box">
         <div class="cls-src">📜 ${d.classical}</div>
-        <div class="cls-meta">${d.classical_dynasty} · ${d.classical_author} · ${d.classical_year}</div>
-        <div class="cls-desc">${d.classical_desc}</div>
+        <div class="cls-meta">${d.period}</div>
       </div>
       ${d.evolution?`<div class="evo-box"><div class="evo-h">🔗 方剂演变</div><div class="evo-content">${d.evolution.from?`由 <strong>${d.evolution.from}</strong> ${d.evolution.reason}`:``}${d.evolution.to?`演化为 <strong>${d.evolution.to}</strong>，${d.evolution.reason}`:``}</div></div>`:``}
       ${d.physician?`<div class="phys-box"><span class="phys-lbl">👨‍⚕️ 名医</span><span class="phys-name">${d.physician}</span></div>`:``}
